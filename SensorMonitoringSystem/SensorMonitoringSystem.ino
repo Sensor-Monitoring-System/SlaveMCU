@@ -1,10 +1,4 @@
-﻿
-
-//const char* ssid = "KT_GiGA_2G_C62E";
-//const char* password = "fzfd8ed535";
-//const int httpPort = 80;
-
-#include <WiFiUdp.h>
+﻿#include <WiFiUdp.h>
 #include <WiFiServerSecure.h>
 #include <WiFiServer.h>
 #include <WiFiClientSecure.h>
@@ -26,8 +20,15 @@
 #define DustPM2_5 //
 #define DustPM10_0 //
 
+//초기 구성 정보
+String SlaveID = "Hyoung";
+
 const char* ssid = "Xperia XZ1_8a47";
 const char* password = "520954d19428";
+
+//const char* ssid = "KT_GiGA_2G_Wave2_1AA9";
+//const char* password = "6932763abc";
+
 const int httpPort = 80;
 const String KMA_url = "/wid/queryDFSRSS.jsp?zone=4146358500";
 const char* SERVER = "www.kma.go.kr";
@@ -66,7 +67,7 @@ void loop()
 	Serial.printf("cds : %d\n", BrightValue);
 
 	SendData(BrightValue);
-	//delay(5000);
+	delay(10000);
 }
 
 void WiFiSetUp()
@@ -116,7 +117,9 @@ void SendData(double value)
 	//  url += streamId;
 	//  url += "?private_key=";
 	//  url += privateKey;
-	url += "bright?value=";
+	url += "id?=" + SlaveID + "&";
+	//url += "illuminance?value=";
+	url += "temperature?value=";
 	url += value;
 
 	Serial.print("Requesting URL: ");
