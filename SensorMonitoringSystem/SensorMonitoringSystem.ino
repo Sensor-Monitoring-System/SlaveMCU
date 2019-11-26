@@ -1,4 +1,5 @@
-﻿#include <WiFiUdp.h>
+﻿#include <ESP8266HTTPClient.h>
+#include <WiFiUdp.h>
 #include <WiFiServerSecure.h>
 #include <WiFiServer.h>
 #include <WiFiClientSecure.h>
@@ -14,6 +15,7 @@
 #include <DHTesp.h>
 #include <SoftwareSerial.h>
 
+
 #define BrightValue analogRead(A0)
 #define Temperature //
 #define Humidity //
@@ -23,11 +25,11 @@
 //초기 구성 정보
 String SlaveID = "Hyoung";
 
-const char* ssid = "Xperia XZ1_8a47";
-const char* password = "520954d19428";
+//const char* ssid = "Xperia XZ1_8a47";
+//const char* password = "520954d19428";
 
-//const char* ssid = "KT_GiGA_2G_Wave2_1AA9";
-//const char* password = "6932763abc";
+const char* ssid = "KT_GiGA_2G_Wave2_1AA9";
+const char* password = "6932763abc";
 
 const int httpPort = 80;
 const String KMA_url = "/wid/queryDFSRSS.jsp?zone=4146358500";
@@ -35,6 +37,7 @@ const char* SERVER = "www.kma.go.kr";
 const char* host = "172.25.242.68";
 
 WiFiClient client;
+HTTPClient http;
 SoftwareSerial mySerial(D5, D6); //RX TX
 PMS pms(mySerial);
 PMS::DATA dustSensor;
@@ -64,9 +67,9 @@ void loop()
 		Serial.printf("UG PM1.0 : %uug/m3,  PM2.5 : %uug/m3,  PM10 : %uug/m3  \r\n", pm1_0, pm2_5, pm10);
 	}
 	//bright = analogRead(A0);
-	Serial.printf("cds : %d\n", BrightValue);
+	Serial.printf("cds : %d  wifi : %d\n", BrightValue, WiFi.status());
 
-	SendData(BrightValue);
+	sendDataHTTP(BrightValue);
 	delay(10000);
 }
 
@@ -118,7 +121,6 @@ void SendData(double value)
 	//  url += "?private_key=";
 	//  url += privateKey;
 	url += "id?=" + SlaveID + "&";
-	//url += "illuminance?value=";
 	url += "temperature?value=";
 	url += value;
 
@@ -150,4 +152,37 @@ void SendData(double value)
 
 	Serial.println();
 	Serial.println("closing connection");
+}
+
+void sendDataHTTP(double value)
+{
+	if (WiFi.status() == WL_CONNECTED)
+	{ //Check WiFi connection status
+
+		HTTPClient http;  //Declare an object of class HTTPClient
+
+		// We now create a URI for the request
+		String url = "172.25.242.68/";
+		//  url += streamId;
+		//  url += "?private_key=";
+		//  url += privateKey;
+		url += "id?=" + SlaveID + "&";
+		url += "temperature?value=";
+		url += value;
+		Serial.println("begin");
+
+		//http.begin(url);  //Specify request destination
+		http.begin("http://jsonplaceholder.typicode.com/users/1");  //Specify request destination
+
+		int httpCode = http.GET(); //Send the request
+
+		Serial.printf("httpCode : %d\n", httpCode);
+		if (httpCode > 0)
+		{ //Check the returning code
+			String payload = http.getString();   //Get the request response payload
+			Serial.println(payload);                     //Print the response payload
+		}
+		http.end();   //Close connection
+	}
+	//delay(10000);    //Send a request every 10 seconds
 }
