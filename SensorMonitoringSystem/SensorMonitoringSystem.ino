@@ -29,20 +29,20 @@ typedef struct _WiFiInfo
 	String PASS;
 } WiFiInfo;
 
+
 //초기 구성 정보
-String SlaveID = "Hyoung";
+String ID = "Hyoung";
 
 //const String SSID = "Xperia XZ1_8a47";
 //const String PASSWORD = "520954d19428";
-//const String SSID = "KT_GiGA_2G_Wave2_1AA9";
-//const String PASSWORD = "6932763abc";
+const String SSID = "KT_GiGA_2G_Wave2_1AA9";
+const String PASSWORD = "6932763abc";
 WiFiInfo WIFIINFO;
 
 const int httpPort = 80;
-const String host = "172.25.242.68";
+//const String host = "172.25.242.68";
+const String HOST = "124.80.117.37";
 
-WiFiClient client;
-HTTPClient http;
 SoftwareSerial dustSerial(D5, D6); //RX TX
 PMS pms(dustSerial);
 PMS::DATA dustSensor;
@@ -59,7 +59,7 @@ int rom_addr = 0;
 void setup()
 {
 	Serial.begin(9600);
-	//SaveWiFiInfo(SSID, PASSWORD);
+	SaveWiFiInfo(SSID, PASSWORD);
 	
 	ReadWiFiInfo();
 	//dustSerial.begin(9600);
@@ -84,9 +84,23 @@ void loop()
 	bright = analogRead(A0);
 	Serial.printf("cds : %d  wifi : %d\n", BrightValue, WiFi.status());
 
-	sendDataHTTP(BrightValue);
-	delay(10000);
-	
+	//PostData(HOST, 80, bright);
+	//PostDataTest();
+
+	sendData_GET(HOST, 80, ID, "temperature", bright); //온도
+	delay(500);
+	sendData_GET(HOST, 80, ID, "humidity", bright); //습도
+	delay(200);
+	sendData_GET(HOST, 80, ID, "ultrasound", bright); //거리
+	delay(100);
+	sendData_GET(HOST, 80, ID, "illuminance", bright); //밝기
+	delay(300);
+	sendData_GET(HOST, 80, ID, "particulate_matter2", bright); //미세먼지 pm2.5
+	delay(400);
+	sendData_GET(HOST, 80, ID, "particulate_matter10", bright); //미세먼지 pm10.0
+	delay(400);
+	sendData_GET(HOST, 80, "NOT_MY_ID", "particulate_matter10", bright); //다른 아이디
+	delay(60000);
 }
 
 void WiFiSetUp()
@@ -117,52 +131,96 @@ void WiFiSetUp()
 	Serial.println("--------------");
 }
 
-void SendData(double value)
+void PostData(String host, int port, double value)
 {
 	Serial.print("connecting to ");
-	Serial.print(host);
-
-	String post_url = "/";
-	//  url += streamId;
-	//  url += "?private_key=";
-	//  url += privateKey;
-	post_url += "id?=" + SlaveID + "&";
-	post_url += "temperature?value=";
-	post_url += value;
-
-	Serial.print("Requesting URL: ");
-	Serial.println(post_url);
-
-	http.begin("http://172.25.242.68/"); //Specify request destination
-	http.addHeader("Content-Type", "application/x-www-form-urlencoded"); //Specify content-type header
-
-
-	int httpCode = http.POST(post_url);
-	String payload = http.getString();
-
-	Serial.printf("httpcode : %d\n", httpCode);
-	Serial.println(payload);
-}
-
-void sendDataHTTP(double value)
-{
+	Serial.println(HOST);
 	if (WiFi.status() == WL_CONNECTED)
-	{ //Check WiFi connection status
-
+	{
 		HTTPClient http;  //Declare an object of class HTTPClient
 
-		// We now create a URI for the request
-		String url = "172.25.242.68/";
-		//  url += streamId;
-		//  url += "?private_key=";
-		//  url += privateKey;
-		url += "id?=" + SlaveID + "&";
-		url += "temperature?value=";
-		url += value;
-		Serial.println("begin");
+		String post_url = "http://124.80.117.37:80/texttest";
 
-		//http.begin(url);  //Specify request destination
-		http.begin("http://jsonplaceholder.typicode.com/users/1");  //Specify request destination
+		//post_url += "temperature?id=Hyoung&value=113.00";
+		//post_url += "id?=" + SlaveID + "&";
+		//post_url += "temperature?value=";
+		//post_url += value;
+
+		Serial.print("begin URL: ");
+		Serial.println(post_url);
+
+		http.begin(post_url); //Specify request destination
+		//http.addHeader("Content-Type", "application/x-www-form-urlencoded"); //Specify content-type header
+		int httpCode = http.POST("text=testset"); //URL POST
+		String payload = http.getString();
+
+		Serial.printf("httpcode : %d\n", httpCode);
+		Serial.println(payload);
+
+		http.end();
+	}
+	else
+	{
+		Serial.println("WiFi NOT CONNECTED");
+	}
+
+}
+
+void PostDataTest()
+{
+	WiFiClient client;
+	if(!client.connect(HOST, httpPort))
+	{
+		Serial.println("연결에 실패");
+		return;
+	}
+
+	String PostData = "text=testetest1234test";
+
+	client.println("POST /texttest HTTP/1.1");
+	client.println("Host: 124.80.117.37:80");
+	//client.println("Cache-Control: no-cache");
+	//client.println("Content-Type: application/x-www-form-urlencoded");
+	client.print("Content-Length: ");
+	client.println(PostData.length());
+	//client.println();
+	//client.println("value=12&id=Hyoung");
+	client.println(PostData);
+
+	unsigned long timeout = millis();
+	while (client.available() == 0)
+	{
+		if (millis() - timeout > 5000)
+		{
+			Serial.println(">>> 클라이언트 시간초과 !");
+			client.stop();
+			return;
+		}
+	}
+
+	while (client.connected())
+	{
+		if (client.available())
+		{
+			char str = client.read();
+			Serial.print(str);
+		}
+	}
+}
+
+void sendData_GET(String host, int port, String id,String sensor_type, double sensor_value)
+{
+	if (WiFi.status() == WL_CONNECTED)
+	{
+		HTTPClient http;
+
+		String url = "http://"+ host + ":" + port + "/";
+		
+		url += sensor_type + "?" + "value=" + sensor_value + "&";
+		url += "id=" + id;
+		Serial.println("begin :" + url);
+
+		http.begin(url); //Specify request destination
 
 		int httpCode = http.GET(); //Send the request
 
